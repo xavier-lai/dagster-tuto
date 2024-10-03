@@ -17,10 +17,11 @@ from .constants import (
 
 from datetime import datetime, timedelta
 from typing import List
+from dagster_duckdb import DuckDBResource
 
 
 @asset(deps=["taxi_trips", "taxi_zones"])
-def manhattan_trips() -> None:
+def manhattan_trips(database: DuckDBResource) -> None:
     query = """
         select
             zones.zone,
@@ -33,8 +34,8 @@ def manhattan_trips() -> None:
         group by zone, borough, geometry
     """
 
-    conn = duckdb.connect(DUCK_DB_PATH)
-    trips_by_zone = conn.execute(query).fetch_df()
+    with database.get_connection() as conn:
+        trips_by_zone = conn.execute(query).fetch_df()
 
     trips_by_zone["geometry"] = gpd.GeoSeries.from_wkt(trips_by_zone["geometry"])
     trips_by_zone = gpd.GeoDataFrame(trips_by_zone)
@@ -66,10 +67,8 @@ def manhattan_map() -> None:
 
 
 @asset(deps=["taxi_trips", "taxi_zones"])
-def trips_by_week() -> None:
+def trips_by_week(database: DuckDBResource) -> None:
     """Metrics of taxi trips by weeks"""
-
-    conn = duckdb.connect(DUCK_DB_PATH)
     current_date = datetime.strptime("2023-03-01", DATE_FORMAT)
     end_date = datetime.strptime("2023-04-01", DATE_FORMAT)
 
@@ -90,7 +89,10 @@ def trips_by_week() -> None:
             group by week
         """
 
-        current_week_metrics_list = conn.execute(current_week_metrics_sql).fetchall()
+        with database.get_connection() as conn:
+            current_week_metrics_list = conn.execute(
+                current_week_metrics_sql
+            ).fetchall()
         current_week_metrics_pdf = pd.DataFrame(
             current_week_metrics_list,
             columns=[

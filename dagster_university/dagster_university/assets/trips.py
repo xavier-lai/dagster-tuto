@@ -1,13 +1,14 @@
 import requests
+import pandas as pd
 
 from .constants import TAXI_TRIPS_TEMPLATE_FILE_PATH, TAXI_ZONES_FILE_PATH
 
-from dagster import asset, AssetExecutionContext
+from dagster import asset, AssetExecutionContext, MaterializeResult, MetadataValue
 from dagster_duckdb import DuckDBResource
 from ..partitions import monthly_partition
 
 
-@asset(partitions_def=monthly_partition)
+@asset(partitions_def=monthly_partition, group_name="raw_files")
 def taxi_trips_file(context: AssetExecutionContext) -> None:
     """
     The raw parquet files for the taxi trips dataset. Sourced from the NYC Open Data portal.
@@ -22,8 +23,15 @@ def taxi_trips_file(context: AssetExecutionContext) -> None:
     ) as output_file:
         output_file.write(raw_trips_parquet.content)
 
+    num_rows = len(
+        pd.read_parquet(TAXI_TRIPS_TEMPLATE_FILE_PATH.format(month_to_fetch))
+    )
+    return MaterializeResult(
+        metadata={"Number of records extracted": MetadataValue.int(num_rows)}
+    )
 
-@asset
+
+@asset(group_name="raw_files")
 def taxi_zones_file() -> None:
     """
     The raw CSV file for the taxi zones dataset. Sourced from the NYC Open Data portal.
@@ -36,8 +44,17 @@ def taxi_zones_file() -> None:
     with open(TAXI_ZONES_FILE_PATH, "wb") as output_file:
         output_file.write(raw_zones_csv.content)
 
+    raw_zone_pdf = pd.read_csv(TAXI_ZONES_FILE_PATH)
+    zone_count = len(raw_zone_pdf.index)
 
-@asset(deps=["taxi_trips_file"], partitions_def=monthly_partition)
+    return MaterializeResult(
+        metadata={"Number of records extracted": MetadataValue.int(zone_count)}
+    )
+
+
+@asset(
+    deps=["taxi_trips_file"], partitions_def=monthly_partition, group_name="ingested"
+)
 def taxi_trips(context: AssetExecutionContext, database: DuckDBResource) -> None:
     """
     The raw taxi trips dataset, loaded into a DuckDB database
@@ -78,7 +95,7 @@ def taxi_trips(context: AssetExecutionContext, database: DuckDBResource) -> None
         conn.execute(insert_trips_query)
 
 
-@asset(deps=["taxi_zones_file"])
+@asset(deps=["taxi_zones_file"], group_name="ingested")
 def taxi_zones(database: DuckDBResource) -> None:
     """
     The raw taxi zones table, loaded into a DuckDB database

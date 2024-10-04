@@ -1,4 +1,4 @@
-from dagster import asset
+from dagster import asset, AssetCheckExecutionContext
 
 import plotly.express as px
 import plotly.io as pio
@@ -15,6 +15,7 @@ from .constants import (
     TRIPS_BY_WEEK_FILE_PATH,
 )
 
+from ..partitions import weekly_partition
 from datetime import datetime, timedelta
 from typing import List
 from dagster_duckdb import DuckDBResource
@@ -66,46 +67,38 @@ def manhattan_map() -> None:
     pio.write_image(fig, MANHATTAN_MAP_FILE_PATH)
 
 
-@asset(deps=["taxi_trips", "taxi_zones"])
-def trips_by_week(database: DuckDBResource) -> None:
+@asset(deps=["taxi_trips", "taxi_zones"], partitions_def=weekly_partition)
+def trips_by_week(
+    context: AssetCheckExecutionContext, database: DuckDBResource
+) -> None:
     """Metrics of taxi trips by weeks"""
-    current_date = datetime.strptime("2023-03-01", DATE_FORMAT)
-    end_date = datetime.strptime("2023-04-01", DATE_FORMAT)
+    current_week_date_str = context.partition_key
+    current_week_metrics_sql = f"""
+        select
+            date_trunc('week', pickup_datetime) as week,
+            '{current_week_date_str}' AS period,
+            count(*) as num_trips,
+            sum(passenger_count) AS passenger_count,
+            sum(total_amount) AS total_amount,
+            sum(trip_distance) AS trip_distance
+        from trips
+        where pickup_datetime >= '{current_week_date_str}' and pickup_datetime < '{current_week_date_str}'::date + interval '1 week'
+        group by week
+    """
 
-    all_week_metrics_list: List[pd.DataFrame] = []
+    with database.get_connection() as conn:
+        current_week_metrics_pdf: pd.DataFrame = conn.execute(
+            current_week_metrics_sql
+        ).fetch_df()
 
-    while current_date < end_date:
-        current_date_str = current_date.strftime(DATE_FORMAT)
-        current_week_metrics_sql = f"""
-            select
-                date_trunc('week', pickup_datetime) as week,
-                strftime(date_trunc('week', pickup_datetime) + interval '6 days', '%Y-%m-%d') AS period,
-                count(*) as num_trips,
-                sum(passenger_count) AS passenger_count,
-                sum(total_amount) AS total_amount,
-                sum(trip_distance) AS trip_distance
-            from trips
-            where date_trunc('week', pickup_datetime) = date_trunc('week', '{current_date_str}'::date)
-            group by week
-        """
-
-        with database.get_connection() as conn:
-            current_week_metrics_list = conn.execute(
-                current_week_metrics_sql
-            ).fetchall()
-        current_week_metrics_pdf = pd.DataFrame(
-            current_week_metrics_list,
-            columns=[
-                "week",
-                "period",
-                "num_trips",
-                "passenger_count",
-                "total_amount",
-                "trip_distance",
-            ],
+    try:
+        existing_all_week_metric_pdf = pd.read_csv(TRIPS_BY_WEEK_FILE_PATH)
+        existing_other_weeks_metric_pdf = existing_all_week_metric_pdf[
+            existing_all_week_metric_pdf["period"] != current_week_date_str
+        ]
+        all_week_metric_pdf = pd.concat(
+            [existing_other_weeks_metric_pdf, current_week_metrics_pdf]
         )
-        all_week_metrics_list.append(current_week_metrics_pdf)
-        current_date += timedelta(days=7)
-
-    weekly_metrics_pdf = pd.concat(all_week_metrics_list)
-    weekly_metrics_pdf.to_csv(TRIPS_BY_WEEK_FILE_PATH, index=False)
+        all_week_metric_pdf.to_csv(TRIPS_BY_WEEK_FILE_PATH, index=False)
+    except FileNotFoundError:
+        current_week_metrics_pdf.to_csv(TRIPS_BY_WEEK_FILE_PATH, index=False)

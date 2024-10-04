@@ -1,4 +1,4 @@
-from dagster import asset, AssetCheckExecutionContext
+from dagster import asset, AssetExecutionContext
 
 import plotly.express as px
 import plotly.io as pio
@@ -68,9 +68,7 @@ def manhattan_map() -> None:
 
 
 @asset(deps=["taxi_trips", "taxi_zones"], partitions_def=weekly_partition)
-def trips_by_week(
-    context: AssetCheckExecutionContext, database: DuckDBResource
-) -> None:
+def trips_by_week(context: AssetExecutionContext, database: DuckDBResource) -> None:
     """Metrics of taxi trips by weeks"""
     current_week_date_str = context.partition_key
     current_week_metrics_sql = f"""

@@ -29,17 +29,25 @@ TAXI_TRIPS_TEMPLATE_FILE_PATH = get_path_for_env(
 TRIPS_BY_AIRPORT_FILE_PATH = get_path_for_env(
     os.path.join("data", "outputs", "trips_by_airport.csv")
 )
-TRIPS_BY_WEEK_FILE_PATH = get_path_for_env(os.path.join("data", "outputs", "trips_by_week.csv"))
+TRIPS_BY_WEEK_FILE_PATH = get_path_for_env(
+    os.path.join("data", "outputs", "trips_by_week.csv")
+)
 MANHATTAN_STATS_FILE_PATH = get_path_for_env(
     os.path.join("data", "staging", "manhattan_stats.geojson")
 )
-MANHATTAN_MAP_FILE_PATH = get_path_for_env(os.path.join("data", "outputs", "manhattan_map.png"))
+MANHATTAN_MAP_FILE_PATH = get_path_for_env(
+    os.path.join("data", "outputs", "manhattan_map.png")
+)
 
-REQUEST_DESTINATION_TEMPLATE_FILE_PATH = get_path_for_env(os.path.join("data", "outputs", "{}.png"))
+REQUEST_DESTINATION_TEMPLATE_FILE_PATH = get_path_for_env(
+    os.path.join("data", "outputs", "{}.png")
+)
 
 DATE_FORMAT = "%Y-%m-%d"
 
 START_DATE = "2023-01-01"
 END_DATE = "2023-04-01"
 
-AIRPORT_TRIPS_FILE_PATH = get_path_for_env(os.path.join("data", "outputs", "airport_trips.png"))
+AIRPORT_TRIPS_FILE_PATH = get_path_for_env(
+    os.path.join("data", "outputs", "airport_trips.png")
+)

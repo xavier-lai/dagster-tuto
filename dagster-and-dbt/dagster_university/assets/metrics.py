@@ -4,7 +4,13 @@ import geopandas as gpd
 import pandas as pd
 import plotly.express as px
 import plotly.io as pio
-from dagster import AssetExecutionContext, AssetKey, MaterializeResult, MetadataValue, asset
+from dagster import (
+    AssetExecutionContext,
+    AssetKey,
+    MaterializeResult,
+    MetadataValue,
+    asset,
+)
 from dagster_duckdb import DuckDBResource
 from smart_open import open
 

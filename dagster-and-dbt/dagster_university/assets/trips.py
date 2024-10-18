@@ -27,7 +27,9 @@ def taxi_zones_file() -> MaterializeResult:
         output_file.write(raw_taxi_zones.content)
 
     num_rows = len(pd.read_csv(BytesIO(raw_taxi_zones.content)))
-    return MaterializeResult(metadata={"Number of records": MetadataValue.int(num_rows)})
+    return MaterializeResult(
+        metadata={"Number of records": MetadataValue.int(num_rows)}
+    )
 
 
 @asset(
@@ -74,7 +76,9 @@ def taxi_trips_file(context: AssetExecutionContext) -> MaterializeResult:
         output_file.write(raw_trips.content)
 
     num_rows = len(pd.read_parquet(BytesIO(raw_trips.content)))
-    return MaterializeResult(metadata={"Number of records": MetadataValue.int(num_rows)})
+    return MaterializeResult(
+        metadata={"Number of records": MetadataValue.int(num_rows)}
+    )
 
 
 @asset(

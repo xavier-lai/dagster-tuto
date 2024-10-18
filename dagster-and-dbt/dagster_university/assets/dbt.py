@@ -15,10 +15,13 @@ class CustomizedDagsterDbtTranslator(DagsterDbtTranslator):
         else:
             return super().get_asset_key(dbt_resource_props)
 
+    def get_group_name(self, dbt_resource_props):
+        return dbt_resource_props["fqn"][1]
+
 
 @dbt_assets(
     manifest=dbt_project.manifest_path,
-    dagster_dbt_translator=CustomizedDagsterDbtTranslator,
+    dagster_dbt_translator=CustomizedDagsterDbtTranslator(),
 )
 def dbt_analytics(context: AssetExecutionContext, dbt: DbtCliResource):
     yield from dbt.cli(["build"], context=context).stream()

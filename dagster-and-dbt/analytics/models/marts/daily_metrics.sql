@@ -6,10 +6,7 @@
 }}
 
 with
-    trips as (
-        select *
-        from {{ ref('stg_trips') }}
-    ),
+    trips as (select * from {{ ref('stg_trips') }}),
     daily_summary as (
         select
             date_trunc('day', pickup_datetime) as date_of_business,
@@ -25,5 +22,6 @@ with
 select *
 from daily_summary
 {% if is_incremental() %}
-    where date_of_business > (select max(date_of_business) from {{ this }})
+    where
+        date_of_business between '{{ var(' min_date ') }}' and '{{ var(' max_date ') }}'
 {% endif %}
